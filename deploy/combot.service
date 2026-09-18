@@ -1,0 +1,15 @@
+[Unit]
+Description=combot (Telegram communicator)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__USER__
+WorkingDirectory=__REPO_DIR__
+ExecStart=__REPO_DIR__/venv/bin/python3 __REPO_DIR__/main.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
