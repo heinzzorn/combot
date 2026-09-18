@@ -2,6 +2,7 @@ import logging
 import os
 import subprocess
 import sys
+from functools import wraps
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -26,12 +27,36 @@ DEPLOYER_TRIGGER = (
 )
 
 
+def guarded(handler):
+    """Reports every command attempt to the owner's chat, and rejects anyone
+    whose user id isn't CHAT_ID (the owner). Before CHAT_ID is configured
+    there's no owner to check against yet, so commands go through
+    unrestricted -- this is what lets /start work during initial setup."""
+
+    @wraps(handler)
+    async def wrapped(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        user = update.effective_user
+        text = update.message.text or ""
+        notify.send(f"activity: user {user.id} (@{user.username}) in chat {update.effective_chat.id}: {text}")
+
+        if CHAT_ID and str(user.id) != str(CHAT_ID):
+            log.warning("rejected command from unauthorized user %s: %s", user.id, text)
+            await update.message.reply_text("Not authorized.")
+            return
+
+        await handler(update, context)
+
+    return wrapped
+
+
+@guarded
 async def start(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"combot is running. Your chat id is {update.effective_chat.id}."
     )
 
 
+@guarded
 async def ping(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(logic.ping())
 
@@ -39,6 +64,7 @@ async def ping(update: Update, _context: ContextTypes.DEFAULT_TYPE):
 DEPLOY_TARGETS = ("212-bot", "combot", "all")
 
 
+@guarded
 async def deploy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = context.args[0] if context.args else "all"
     branch = context.args[1] if len(context.args) > 1 else "main"
@@ -65,6 +91,7 @@ BOT_SERVICE = "212-bot.service"
 BOT_ACTIONS = ("start", "stop", "status")
 
 
+@guarded
 async def bot_control(update: Update, context: ContextTypes.DEFAULT_TYPE):
     action = context.args[0] if context.args else None
     if action not in BOT_ACTIONS:
@@ -100,6 +127,7 @@ HELP_TEXT = """Available commands:
 /help - show this message"""
 
 
+@guarded
 async def help_command(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(HELP_TEXT)
 

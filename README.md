@@ -25,6 +25,16 @@ that's kept safe despite combot restarting itself as part of the update.
 
 `.env` is not committed to git (see `.gitignore`) since it holds the bot token — treat that token like a password.
 
+## Access control
+
+Once `TELEGRAM_CHAT_ID` is set, every command is restricted to that user id —
+anyone else gets "Not authorized." Every command attempt, from you or anyone
+else, is also reported back to your chat (via `notify.py`) so you always see
+who's poking the bot, even in chats you're not part of. Before
+`TELEGRAM_CHAT_ID` is set, there's no owner to check against yet, so commands
+run unrestricted — this is what lets the very first `/start` work to
+discover your chat id.
+
 ## Controlling 212-bot
 
 ```
