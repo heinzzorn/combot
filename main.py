@@ -41,6 +41,7 @@ DEPLOY_TARGETS = ("212-bot", "combot", "all")
 
 async def deploy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = context.args[0] if context.args else "all"
+    branch = context.args[1] if len(context.args) > 1 else "main"
     if target not in DEPLOY_TARGETS:
         await update.message.reply_text(
             f"Unknown deploy target: {target} (use 212-bot, combot, or omit for both)"
@@ -48,7 +49,7 @@ async def deploy(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     try:
         subprocess.run(
-            ["sudo", str(DEPLOYER_TRIGGER), target],
+            ["sudo", str(DEPLOYER_TRIGGER), target, branch],
             check=True,
             capture_output=True,
             text=True,
@@ -57,7 +58,7 @@ async def deploy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except subprocess.CalledProcessError as exc:
         await update.message.reply_text(f"Failed to trigger deploy: {exc.stderr}")
         return
-    await update.message.reply_text(f"Deploy triggered for {target}, checking now...")
+    await update.message.reply_text(f"Deploy triggered for {target}@{branch}, checking now...")
 
 
 BOT_SERVICE = "212-bot.service"
@@ -94,7 +95,7 @@ async def bot_control(update: Update, context: ContextTypes.DEFAULT_TYPE):
 HELP_TEXT = """Available commands:
 /start - show this chat's id
 /ping - replies pong
-/deploy [212-bot|combot] - check for and apply updates (default: both)
+/deploy [212-bot|combot] [branch] - check for and apply updates (default: both, main)
 /bot <start|stop|status> - control 212-bot.service
 /help - show this message"""
 

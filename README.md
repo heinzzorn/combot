@@ -10,11 +10,11 @@ checkout (both under the same parent directory) for that import to work.
 212-bot also runs as its own standalone service (`212-bot.service`), which
 `/bot start`, `/bot stop`, and `/bot status` control independently of combot.
 
-`/deploy`, `/deploy 212-bot`, or `/deploy combot` trigger
-[bot-deployer](https://github.com/heinzzorn/bot-deployer) (also expected as a
-sibling checkout) to check for and apply updates to one or both repos on
-demand — see its README for how that's kept safe despite combot restarting
-itself as part of the update.
+`/deploy`, `/deploy 212-bot`, `/deploy combot`, or `/deploy combot my-branch`
+trigger [bot-deployer](https://github.com/heinzzorn/bot-deployer) (also
+expected as a sibling checkout) to check for and apply updates to one or both
+repos, from `main` or another branch, on demand — see its README for how
+that's kept safe despite combot restarting itself as part of the update.
 
 ## Telegram setup
 
