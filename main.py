@@ -28,19 +28,22 @@ DEPLOYER_TRIGGER = (
 
 
 def guarded(handler):
-    """Reports every command attempt to the owner's chat, and rejects anyone
-    whose user id isn't CHAT_ID (the owner). Before CHAT_ID is configured
-    there's no owner to check against yet, so commands go through
+    """Logs every command attempt (with content) to the journal, and rejects
+    anyone whose user id isn't CHAT_ID (the owner) -- reporting only who they
+    are to the owner's chat, never the command content. Before CHAT_ID is
+    configured there's no owner to check against yet, so commands go through
     unrestricted -- this is what lets /start work during initial setup."""
 
     @wraps(handler)
     async def wrapped(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user = update.effective_user
+        chat_id = update.effective_chat.id
         text = update.message.text or ""
-        notify.send(f"activity: user {user.id} (@{user.username}) in chat {update.effective_chat.id}: {text}")
+
+        log.info("user %s (@%s) in chat %s: %s", user.id, user.username, chat_id, text)
 
         if CHAT_ID and str(user.id) != str(CHAT_ID):
-            log.warning("rejected command from unauthorized user %s: %s", user.id, text)
+            notify.send(f"unauthorized activity: user {user.id} (@{user.username}) in chat {chat_id}")
             await update.message.reply_text("Not authorized.")
             return
 
