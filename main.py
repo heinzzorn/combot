@@ -60,6 +60,37 @@ async def deploy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"Deploy triggered for {target}, checking now...")
 
 
+BOT_SERVICE = "212-bot.service"
+BOT_ACTIONS = ("start", "stop", "status")
+
+
+async def bot_control(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    action = context.args[0] if context.args else None
+    if action not in BOT_ACTIONS:
+        await update.message.reply_text("Usage: /bot <start|stop|status>")
+        return
+
+    if action == "status":
+        result = subprocess.run(
+            ["systemctl", "is-active", BOT_SERVICE], capture_output=True, text=True
+        )
+        await update.message.reply_text(f"{BOT_SERVICE}: {result.stdout.strip()}")
+        return
+
+    try:
+        subprocess.run(
+            ["sudo", "/usr/bin/systemctl", action, BOT_SERVICE],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except subprocess.CalledProcessError as exc:
+        await update.message.reply_text(f"Failed to {action} {BOT_SERVICE}: {exc.stderr}")
+        return
+    await update.message.reply_text(f"OK, {action} issued for {BOT_SERVICE}")
+
+
 async def post_init(_application: Application):
     if CHAT_ID:
         notify.send("combot started")
@@ -72,6 +103,7 @@ def main():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("ping", ping))
     application.add_handler(CommandHandler("deploy", deploy))
+    application.add_handler(CommandHandler("bot", bot_control))
 
     log.info("combot starting")
     application.run_polling()

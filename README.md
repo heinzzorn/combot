@@ -4,9 +4,11 @@ The Telegram communicator. Owns the bot token and chat, runs the polling
 loop, dispatches commands, and sends notifications.
 
 Business logic lives in the sibling [212-bot](https://github.com/heinzzorn/212-bot)
-repo, imported directly (`import logic`) via a relative sys.path entry — this
-repo must be checked out next to a `212-bot` checkout (both under the same
-parent directory) for that import to work.
+repo. Synchronous functions (e.g. `logic.ping()`) are imported directly via a
+relative sys.path entry — this repo must be checked out next to a `212-bot`
+checkout (both under the same parent directory) for that import to work.
+212-bot also runs as its own standalone service (`212-bot.service`), which
+`/bot start`, `/bot stop`, and `/bot status` control independently of combot.
 
 `/deploy`, `/deploy 212-bot`, or `/deploy combot` trigger
 [bot-deployer](https://github.com/heinzzorn/bot-deployer) (also expected as a
@@ -23,6 +25,16 @@ itself as part of the update.
 
 `.env` is not committed to git (see `.gitignore`) since it holds the bot token — treat that token like a password.
 
+## Controlling 212-bot
+
+```
+/bot start    # sudo systemctl start 212-bot.service
+/bot stop     # sudo systemctl stop 212-bot.service
+/bot status   # systemctl is-active 212-bot.service
+```
+
+Requires the sudoers rule installed by `deploy/install.sh` (see below).
+
 ## Standalone install
 
 Normally this is set up by [bot-deployer](https://github.com/heinzzorn/bot-deployer),
@@ -34,8 +46,9 @@ up combot on its own (with `../212-bot` already checked out):
 ```
 
 This creates a venv, installs dependencies, creates `.env` from `.env.example`
-if missing, and installs/starts `combot.service` (systemd, `Restart=always`,
-starts on boot).
+if missing, installs/starts `combot.service` (systemd, `Restart=always`,
+starts on boot), and installs the sudoers rule combot needs to start/stop
+`212-bot.service`.
 
 Check status:
 
