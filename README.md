@@ -28,14 +28,18 @@ that's kept safe despite combot restarting itself as part of the update.
 ## Access control
 
 Once `TELEGRAM_CHAT_ID` is set, every command is restricted to that user id —
-anyone else gets "Not authorized." Every command attempt (with its full
-content) is logged via Python's `logging`, which under `combot.service` lands
-in the journal — see it with `journalctl -u combot.service`. Only
-*unauthorized* attempts also get reported to your chat (via `notify.py`), and
-only with who they are (user id, username, chat id) — never the command
-content, which stays in the journal. Before `TELEGRAM_CHAT_ID` is set,
-there's no owner to check against yet, so commands run unrestricted — this is
-what lets the very first `/start` work to discover your chat id.
+anyone else gets "Not authorized." Every command attempt (with its content)
+is logged via Python's `logging`, which under `combot.service` lands in the
+journal — see it with `journalctl -u combot.service`. Logged content is
+sanitized first: control/escape characters are stripped (so a message can't
+inject fake log lines or terminal escape sequences into your journal) and
+capped at 200 characters. Only *unauthorized* attempts also get reported to
+your chat (via `notify.py`), and only with who they are (user id, username,
+chat id) — never the command content, which stays in the journal — and at
+most once per minute per user, so repeated attempts can't spam your chat.
+Before `TELEGRAM_CHAT_ID` is set, there's no owner to check against yet, so
+commands run unrestricted — this is what lets the very first `/start` work to
+discover your chat id.
 
 ## Controlling 212-bot
 
