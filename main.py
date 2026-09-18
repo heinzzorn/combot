@@ -36,19 +36,28 @@ async def ping(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(logic.ping())
 
 
-async def trigger_update(update: Update, _context: ContextTypes.DEFAULT_TYPE):
+DEPLOY_TARGETS = ("212-bot", "combot", "all")
+
+
+async def deploy(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    target = context.args[0] if context.args else "all"
+    if target not in DEPLOY_TARGETS:
+        await update.message.reply_text(
+            f"Unknown deploy target: {target} (use 212-bot, combot, or omit for both)"
+        )
+        return
     try:
         subprocess.run(
-            ["sudo", str(DEPLOYER_TRIGGER)],
+            ["sudo", str(DEPLOYER_TRIGGER), target],
             check=True,
             capture_output=True,
             text=True,
             timeout=10,
         )
     except subprocess.CalledProcessError as exc:
-        await update.message.reply_text(f"Failed to trigger update: {exc.stderr}")
+        await update.message.reply_text(f"Failed to trigger deploy: {exc.stderr}")
         return
-    await update.message.reply_text("Update triggered, checking now...")
+    await update.message.reply_text(f"Deploy triggered for {target}, checking now...")
 
 
 async def post_init(_application: Application):
@@ -62,7 +71,7 @@ def main():
     application = Application.builder().token(BOT_TOKEN).post_init(post_init).build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("ping", ping))
-    application.add_handler(CommandHandler("update", trigger_update))
+    application.add_handler(CommandHandler("deploy", deploy))
 
     log.info("combot starting")
     application.run_polling()

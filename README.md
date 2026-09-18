@@ -8,8 +8,9 @@ repo, imported directly (`import logic`) via a relative sys.path entry — this
 repo must be checked out next to a `212-bot` checkout (both under the same
 parent directory) for that import to work.
 
-`/update` triggers [bot-deployer](https://github.com/heinzzorn/bot-deployer)
-(also expected as a sibling checkout) to check for and apply updates on
+`/deploy`, `/deploy 212-bot`, or `/deploy combot` trigger
+[bot-deployer](https://github.com/heinzzorn/bot-deployer) (also expected as a
+sibling checkout) to check for and apply updates to one or both repos on
 demand — see its README for how that's kept safe despite combot restarting
 itself as part of the update.
 
