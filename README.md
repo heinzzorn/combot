@@ -51,6 +51,16 @@ discover your chat id.
 
 Requires the sudoers rule installed by `deploy/install.sh` (see below).
 
+## Viewing logs
+
+```
+/logs        # last 20 lines of combot's journal
+/logs 100    # last 100 lines (max)
+```
+
+Runs `sudo journalctl -u combot.service`, requiring the same sudoers rule as
+above.
+
 ## Standalone install
 
 Normally this is set up by [bot-deployer](https://github.com/heinzzorn/bot-deployer),
@@ -64,7 +74,7 @@ up combot on its own (with `../212-bot` already checked out):
 This creates a venv, installs dependencies, creates `.env` from `.env.example`
 if missing, installs/starts `combot.service` (systemd, `Restart=always`,
 starts on boot), and installs the sudoers rule combot needs to start/stop
-`212-bot.service`.
+`212-bot.service` and read its own journal.
 
 Check status:
 

@@ -151,11 +151,39 @@ async def bot_control(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"OK, {action} issued for {BOT_SERVICE}")
 
 
+LOG_SERVICE = "combot.service"
+DEFAULT_LOG_LINES = 20
+MAX_LOG_LINES = 100
+TELEGRAM_MAX_MESSAGE = 4000
+
+
+@guarded
+async def logs(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        n = int(context.args[0]) if context.args else DEFAULT_LOG_LINES
+    except ValueError:
+        await update.message.reply_text("Usage: /logs [n]  (n = number of lines, default 20)")
+        return
+    n = max(1, min(n, MAX_LOG_LINES))
+
+    result = subprocess.run(
+        ["sudo", "/usr/bin/journalctl", "-u", LOG_SERVICE, "-n", str(n), "--no-pager"],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    output = result.stdout.strip() or "(no output)"
+    if len(output) > TELEGRAM_MAX_MESSAGE:
+        output = "...(truncated)\n" + output[-TELEGRAM_MAX_MESSAGE:]
+    await update.message.reply_text(output)
+
+
 HELP_TEXT = """Available commands:
 /start - show this chat's id
 /ping - replies pong
 /deploy [212-bot|combot] [branch] - check for and apply updates (default: both, main)
 /bot <start|stop|status> - control 212-bot.service
+/logs [n] - show the last n lines of combot's journal (default 20, max 100)
 /help - show this message"""
 
 
@@ -177,6 +205,7 @@ def main():
     application.add_handler(CommandHandler("ping", ping))
     application.add_handler(CommandHandler("deploy", deploy))
     application.add_handler(CommandHandler("bot", bot_control))
+    application.add_handler(CommandHandler("logs", logs))
     application.add_handler(CommandHandler("help", help_command))
 
     log.info("combot starting")
