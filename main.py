@@ -2,19 +2,16 @@ import logging
 import os
 import re
 import subprocess
-import sys
 import time
 from functools import wraps
 from pathlib import Path
 
+import httpx
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "212-bot"))
-import logic  # noqa: E402
-
-import notify  # noqa: E402
+import notify
 
 load_dotenv()
 
@@ -28,6 +25,7 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 
 BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+BOT_API_URL = os.environ.get("BOT_API_URL", "http://127.0.0.1:8212")
 
 
 def redact(text: str) -> str:
@@ -98,8 +96,16 @@ async def start(update: Update, _context: ContextTypes.DEFAULT_TYPE):
 
 
 @guarded
-async def ping(update: Update, _context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(logic.ping())
+async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    http = context.application.bot_data["http"]
+    try:
+        resp = await http.get(f"{BOT_API_URL}/ping")
+        resp.raise_for_status()
+        result = resp.json()["result"]
+    except httpx.HTTPError as exc:
+        await update.message.reply_text(f"212-bot unreachable: {exc}")
+        return
+    await update.message.reply_text(result)
 
 
 DEPLOY_TARGETS = ("212-bot", "combot", "all")
@@ -206,15 +212,26 @@ async def help_command(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(HELP_TEXT)
 
 
-async def post_init(_application: Application):
+async def post_init(application: Application):
+    application.bot_data["http"] = httpx.AsyncClient(timeout=5.0)
     if CHAT_ID:
         notify.send("combot started")
     else:
         log.warning("TELEGRAM_CHAT_ID not set; send /start to the bot to discover it")
 
 
+async def post_shutdown(application: Application):
+    await application.bot_data["http"].aclose()
+
+
 def main():
-    application = Application.builder().token(BOT_TOKEN).post_init(post_init).build()
+    application = (
+        Application.builder()
+        .token(BOT_TOKEN)
+        .post_init(post_init)
+        .post_shutdown(post_shutdown)
+        .build()
+    )
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("ping", ping))
     application.add_handler(CommandHandler("deploy", deploy))

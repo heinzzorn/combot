@@ -3,10 +3,10 @@
 The Telegram communicator. Owns the bot token and chat, runs the polling
 loop, dispatches commands, and sends notifications.
 
-Business logic lives in the sibling [212-bot](https://github.com/heinzzorn/212-bot)
-repo. Synchronous functions (e.g. `logic.ping()`) are imported directly via a
-relative sys.path entry — this repo must be checked out next to a `212-bot`
-checkout (both under the same parent directory) for that import to work.
+`/ping` calls 212-bot's HTTP API (`GET /ping` at `BOT_API_URL`, default
+`http://127.0.0.1:8212`) instead of importing its code. A sibling `212-bot`
+checkout is no longer required for combot's own runtime (bot-deployer still
+lays repos out that way, but combot itself no longer reads 212-bot's files).
 212-bot also runs as its own standalone service (`212-bot.service`), which
 `/bot start`, `/bot stop`, and `/bot status` control independently of combot.
 
