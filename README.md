@@ -8,6 +8,11 @@ repo, imported directly (`import logic`) via a relative sys.path entry — this
 repo must be checked out next to a `212-bot` checkout (both under the same
 parent directory) for that import to work.
 
+`/update` triggers [bot-deployer](https://github.com/heinzzorn/bot-deployer)
+(also expected as a sibling checkout) to check for and apply updates on
+demand — see its README for how that's kept safe despite combot restarting
+itself as part of the update.
+
 ## Telegram setup
 
 1. Talk to [@BotFather](https://t.me/BotFather) on Telegram, run `/newbot`, and copy the token it gives you.
