@@ -167,11 +167,16 @@ async def logs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     n = max(1, min(n, MAX_LOG_LINES))
 
     result = subprocess.run(
-        ["sudo", "/usr/bin/journalctl", "-u", LOG_SERVICE, "-n", str(n), "--no-pager"],
+        ["sudo", "-n", "/usr/bin/journalctl", "-u", LOG_SERVICE, "-n", str(n), "--no-pager"],
         capture_output=True,
         text=True,
         timeout=10,
     )
+    if result.returncode != 0:
+        await update.message.reply_text(
+            f"journalctl failed (exit {result.returncode}): {result.stderr.strip() or 'unknown error'}"
+        )
+        return
     output = result.stdout.strip() or "(no output)"
     if len(output) > TELEGRAM_MAX_MESSAGE:
         output = "...(truncated)\n" + output[-TELEGRAM_MAX_MESSAGE:]
