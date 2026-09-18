@@ -91,6 +91,18 @@ async def bot_control(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"OK, {action} issued for {BOT_SERVICE}")
 
 
+HELP_TEXT = """Available commands:
+/start - show this chat's id
+/ping - replies pong
+/deploy [212-bot|combot] - check for and apply updates (default: both)
+/bot <start|stop|status> - control 212-bot.service
+/help - show this message"""
+
+
+async def help_command(update: Update, _context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(HELP_TEXT)
+
+
 async def post_init(_application: Application):
     if CHAT_ID:
         notify.send("combot started")
@@ -104,6 +116,7 @@ def main():
     application.add_handler(CommandHandler("ping", ping))
     application.add_handler(CommandHandler("deploy", deploy))
     application.add_handler(CommandHandler("bot", bot_control))
+    application.add_handler(CommandHandler("help", help_command))
 
     log.info("combot starting")
     application.run_polling()
