@@ -21,8 +21,17 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("combot")
 
+# httpx (used internally by python-telegram-bot) logs full request URLs at
+# INFO level, and the bot token is embedded directly in the URL -- keep it
+# out of the journal entirely rather than relying on redaction alone.
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
 BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+
+
+def redact(text: str) -> str:
+    return text.replace(BOT_TOKEN, "***REDACTED***")
 
 DEPLOYER_TRIGGER = (
     Path(__file__).resolve().parent.parent / "bot-deployer" / "deploy" / "trigger-update.sh"
@@ -114,7 +123,7 @@ async def deploy(update: Update, context: ContextTypes.DEFAULT_TYPE):
             timeout=10,
         )
     except subprocess.CalledProcessError as exc:
-        await update.message.reply_text(f"Failed to trigger deploy: {exc.stderr}")
+        await update.message.reply_text(f"Failed to trigger deploy: {redact(exc.stderr)}")
         return
     await update.message.reply_text(f"Deploy triggered for {target}@{branch}, checking now...")
 
@@ -146,7 +155,7 @@ async def bot_control(update: Update, context: ContextTypes.DEFAULT_TYPE):
             timeout=10,
         )
     except subprocess.CalledProcessError as exc:
-        await update.message.reply_text(f"Failed to {action} {BOT_SERVICE}: {exc.stderr}")
+        await update.message.reply_text(f"Failed to {action} {BOT_SERVICE}: {redact(exc.stderr)}")
         return
     await update.message.reply_text(f"OK, {action} issued for {BOT_SERVICE}")
 
@@ -174,10 +183,10 @@ async def logs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     if result.returncode != 0:
         await update.message.reply_text(
-            f"journalctl failed (exit {result.returncode}): {result.stderr.strip() or 'unknown error'}"
+            f"journalctl failed (exit {result.returncode}): {redact(result.stderr.strip()) or 'unknown error'}"
         )
         return
-    output = result.stdout.strip() or "(no output)"
+    output = redact(result.stdout.strip()) or "(no output)"
     if len(output) > TELEGRAM_MAX_MESSAGE:
         output = "...(truncated)\n" + output[-TELEGRAM_MAX_MESSAGE:]
     await update.message.reply_text(output)
