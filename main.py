@@ -160,6 +160,22 @@ async def bot_control(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"OK, {action} issued for {BOT_SERVICE}")
 
 
+@guarded
+async def reboot(update: Update, _context: ContextTypes.DEFAULT_TYPE):
+    try:
+        subprocess.run(
+            ["sudo", "/usr/bin/systemctl", "reboot"],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except subprocess.CalledProcessError as exc:
+        await update.message.reply_text(f"Failed to reboot: {redact(exc.stderr)}")
+        return
+    await update.message.reply_text("Rebooting now...")
+
+
 THROTTLE_FLAGS = {
     0: "under-voltage now",
     1: "arm freq capped now",
@@ -247,6 +263,7 @@ HELP_TEXT = """Available commands:
 /bot <start|stop|status> - control 212-bot.service
 /logs [n] - show the last n lines of combot's journal (default 20, max 100)
 /sysinfo - uptime, load, temperature, throttling, memory, disk
+/reboot - reboot the Pi
 /help - show this message"""
 
 
@@ -270,6 +287,7 @@ def main():
     application.add_handler(CommandHandler("bot", bot_control))
     application.add_handler(CommandHandler("logs", logs))
     application.add_handler(CommandHandler("sysinfo", sysinfo))
+    application.add_handler(CommandHandler("reboot", reboot))
     application.add_handler(CommandHandler("help", help_command))
 
     log.info("combot starting")

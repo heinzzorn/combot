@@ -22,6 +22,7 @@ cat <<EOF | sudo tee /etc/sudoers.d/combot-212bot-control >/dev/null
 $SERVICE_USER ALL=(root) NOPASSWD: /usr/bin/systemctl start 212-bot.service
 $SERVICE_USER ALL=(root) NOPASSWD: /usr/bin/systemctl stop 212-bot.service
 $SERVICE_USER ALL=(root) NOPASSWD: /usr/bin/journalctl -u combot.service *
+$SERVICE_USER ALL=(root) NOPASSWD: /usr/bin/systemctl reboot
 EOF
 sudo chmod 440 /etc/sudoers.d/combot-212bot-control
 
