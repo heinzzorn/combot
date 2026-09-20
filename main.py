@@ -102,6 +102,11 @@ async def ping(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(logic.ping())
 
 
+@guarded
+async def positions(update: Update, _context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(logic.positions())
+
+
 DEPLOY_TARGETS = ("212-bot", "combot", "all")
 
 
@@ -264,6 +269,7 @@ HELP_TEXT = """Available commands:
 /logs [n] - show the last n lines of combot's journal (default 20, max 100)
 /sysinfo - uptime, load, temperature, throttling, memory, disk
 /reboot - reboot the Pi
+/positions - list open Trading212 positions
 /help - show this message"""
 
 
@@ -283,6 +289,7 @@ def main():
     application = Application.builder().token(BOT_TOKEN).post_init(post_init).build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("ping", ping))
+    application.add_handler(CommandHandler("positions", positions))
     application.add_handler(CommandHandler("deploy", deploy))
     application.add_handler(CommandHandler("bot", bot_control))
     application.add_handler(CommandHandler("logs", logs))
