@@ -107,6 +107,11 @@ async def positions(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(logic.positions())
 
 
+@guarded
+async def markets(update: Update, _context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(logic.markets())
+
+
 DEPLOY_TARGETS = ("212-bot", "combot", "all")
 
 
@@ -270,6 +275,7 @@ HELP_TEXT = """Available commands:
 /sysinfo - uptime, load, temperature, throttling, memory, disk
 /reboot - reboot the Pi
 /positions - list open Trading212 positions
+/markets - list Trading212 exchanges and whether they're currently open
 /help - show this message"""
 
 
@@ -290,6 +296,7 @@ def main():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("ping", ping))
     application.add_handler(CommandHandler("positions", positions))
+    application.add_handler(CommandHandler("markets", markets))
     application.add_handler(CommandHandler("deploy", deploy))
     application.add_handler(CommandHandler("bot", bot_control))
     application.add_handler(CommandHandler("logs", logs))
