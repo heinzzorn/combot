@@ -3,18 +3,20 @@
 The Telegram communicator. Owns the bot token and chat, runs the polling
 loop, dispatches commands, and sends notifications.
 
-Business logic lives in the sibling [212-bot](https://github.com/heinzzorn/212-bot)
-repo. Synchronous functions (e.g. `logic.ping()`) are imported directly via a
-relative sys.path entry — this repo must be checked out next to a `212-bot`
-checkout (both under the same parent directory) for that import to work.
-212-bot also runs as its own standalone service (`212-bot.service`), which
-`/bot start`, `/bot stop`, and `/bot status` control independently of combot.
+combot's own code has no knowledge of any other project. Every command
+beyond a handful of trivial built-ins (`/start`, `/ping`, `/help`) is defined
+declaratively in [`commands.yaml`](commands.yaml) as either a script to
+execute or an API to call — see `config.py` for the schema and
+`executors.py` for how each type actually runs. Adding, removing, or
+changing what combot can do is a `commands.yaml` edit, not a code change.
 
-`/deploy`, `/deploy 212-bot`, `/deploy combot`, or `/deploy combot my-branch`
-trigger [bot-deployer](https://github.com/heinzzorn/bot-deployer) (also
-expected as a sibling checkout) to check for and apply updates to one or both
-repos, from `main` or another branch, on demand — see its README for how
-that's kept safe despite combot restarting itself as part of the update.
+Script paths in `commands.yaml` are resolved relative to this file, and
+several point into sibling repos ([212-bot](https://github.com/heinzzorn/212-bot),
+[bot-deployer](https://github.com/heinzzorn/bot-deployer)) assuming the
+standard sibling-checkout layout — that's a deployment fact recorded in
+config, not a code dependency. combot never imports anything from those
+repos; it just runs whatever executable `commands.yaml` points at and
+relays its stdout.
 
 ## Telegram setup
 
@@ -41,31 +43,39 @@ Before `TELEGRAM_CHAT_ID` is set, there's no owner to check against yet, so
 commands run unrestricted — this is what lets the very first `/start` work to
 discover your chat id.
 
-## Controlling 212-bot
+## Adding a command
 
+Add an entry to `commands.yaml`:
+
+```yaml
+- name: example
+  description: what /help shows for this command
+  type: script            # or "api"
+  sudo: true               # prefixes `sudo -n`; omit if not needed
+  check: true               # false if a non-zero exit isn't a real failure
+  path: ../some-repo/scripts/example
+  argv: ["{arg_one}"]
+  args:
+    - name: arg_one
+      choices: ["a", "b"]   # or: pattern (regex), or: type: int with min/max
+      default: "a"
 ```
-/bot start    # sudo systemctl start 212-bot.service
-/bot stop     # sudo systemctl stop 212-bot.service
-/bot status   # systemctl is-active 212-bot.service
-```
 
-Requires the sudoers rule installed by `deploy/install.sh` (see below).
+`args` entries map positionally to what's typed after the command in
+Telegram (`/example foo` → `arg_one=foo`); each is validated before
+substitution into `argv`, so a Telegram user can never inject anything
+beyond a declared, validated value. `type: api` commands take `method`,
+`url`, and an optional `auth` block (`basic`/`bearer`/`header`, values
+pulled from combot's own env vars) instead of `path`/`argv`/`sudo`.
 
-## Viewing logs
-
-```
-/logs        # last 20 lines of combot's journal
-/logs 100    # last 100 lines (max)
-```
-
-Runs `sudo journalctl -u combot.service`, requiring the same sudoers rule as
-above.
+Nothing in `main.py`, `config.py`, or `executors.py` needs to change for a
+new command — only `commands.yaml`, and whatever script/API it points at.
 
 ## Standalone install
 
 Normally this is set up by [bot-deployer](https://github.com/heinzzorn/bot-deployer),
 which clones this repo alongside `212-bot` and runs the install below. To set
-up combot on its own (with `../212-bot` already checked out):
+up combot on its own:
 
 ```
 ./deploy/install.sh
@@ -73,8 +83,8 @@ up combot on its own (with `../212-bot` already checked out):
 
 This creates a venv, installs dependencies, creates `.env` from `.env.example`
 if missing, installs/starts `combot.service` (systemd, `Restart=always`,
-starts on boot), and installs the sudoers rule combot needs to start/stop
-`212-bot.service` and read its own journal.
+starts on boot), and installs the sudoers rule needed for the `sudo: true`
+commands in `commands.yaml`.
 
 Check status:
 

@@ -1,0 +1,50 @@
+#!/usr/bin/env python3
+import subprocess
+from pathlib import Path
+
+THROTTLE_FLAGS = {
+    0: "under-voltage now",
+    1: "arm freq capped now",
+    2: "throttled now",
+    3: "soft temp limit now",
+    16: "under-voltage since boot",
+    17: "arm freq capped since boot",
+    18: "throttled since boot",
+    19: "soft temp limit since boot",
+}
+
+
+def run(cmd: list[str]) -> str:
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+        return result.stdout.strip() or result.stderr.strip()
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return f"({exc})"
+
+
+def decode_throttled(raw: str) -> str:
+    try:
+        bits = int(raw.strip().split("=")[1], 16)
+    except (IndexError, ValueError):
+        return raw
+    flags = [label for bit, label in THROTTLE_FLAGS.items() if bits & (1 << bit)]
+    return f"0x{bits:x}" + (f" ({', '.join(flags)})" if flags else " (clean)")
+
+
+def main():
+    load1, load5, load15 = Path("/proc/loadavg").read_text().split()[:3]
+    temp = run(["vcgencmd", "measure_temp"]).removeprefix("temp=")
+    throttled = decode_throttled(run(["vcgencmd", "get_throttled"]))
+
+    print(f"Uptime: {run(['uptime', '-p'])}")
+    print(f"Load avg (1/5/15m): {load1} {load5} {load15}")
+    print(f"Temp: {temp}")
+    print(f"Throttled: {throttled}")
+    print()
+    print(run(["free", "-h"]))
+    print()
+    print(run(["df", "-h", "/"]))
+
+
+if __name__ == "__main__":
+    main()

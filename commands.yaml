@@ -1,0 +1,76 @@
+# Declarative command definitions for combot. Every command here is either
+# a script to execute (path resolved relative to this file) or an API call
+# -- combot's own code has no knowledge of what any of these actually do.
+# Paths into sibling repos assume the standard sibling-checkout layout
+# (212-bot, combot, bot-deployer all under the same parent directory).
+
+commands:
+  - name: positions
+    description: list open Trading212 positions
+    type: script
+    path: ../212-bot/scripts/positions
+
+  - name: markets
+    description: list Trading212 exchanges and whether they're currently open
+    type: script
+    path: ../212-bot/scripts/markets
+
+  - name: deploy
+    description: "check for and apply updates. Usage: /deploy [212-bot|combot|all] [branch]"
+    type: script
+    sudo: true
+    path: ../bot-deployer/deploy/trigger-update.sh
+    argv: ["{target}", "{branch}"]
+    args:
+      - name: target
+        choices: ["212-bot", "combot", "all"]
+        default: "all"
+      - name: branch
+        pattern: '^[A-Za-z0-9._/-]+$'
+        default: "main"
+
+  - name: bot_start
+    description: start 212-bot.service
+    type: script
+    sudo: true
+    path: /usr/bin/systemctl
+    argv: ["start", "212-bot.service"]
+
+  - name: bot_stop
+    description: stop 212-bot.service
+    type: script
+    sudo: true
+    path: /usr/bin/systemctl
+    argv: ["stop", "212-bot.service"]
+
+  - name: bot_status
+    description: show whether 212-bot.service is active
+    type: script
+    check: false  # `systemctl is-active` exits non-zero for "inactive" -- that's not a failure, just report it
+    path: /usr/bin/systemctl
+    argv: ["is-active", "212-bot.service"]
+
+  - name: logs
+    description: "show the last n lines of combot's journal. Usage: /logs [n] (default 20, max 100)"
+    type: script
+    sudo: true
+    path: /usr/bin/journalctl
+    argv: ["-u", "combot.service", "--no-pager", "-n", "{n}"]
+    args:
+      - name: n
+        type: int
+        min: 1
+        max: 100
+        default: "20"
+
+  - name: sysinfo
+    description: uptime, load, temperature, throttling, memory, disk
+    type: script
+    path: ./scripts/sysinfo
+
+  - name: reboot
+    description: reboot the Pi
+    type: script
+    sudo: true
+    path: /usr/bin/systemctl
+    argv: ["reboot"]
