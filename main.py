@@ -160,6 +160,54 @@ async def bot_control(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"OK, {action} issued for {BOT_SERVICE}")
 
 
+THROTTLE_FLAGS = {
+    0: "under-voltage now",
+    1: "arm freq capped now",
+    2: "throttled now",
+    3: "soft temp limit now",
+    16: "under-voltage since boot",
+    17: "arm freq capped since boot",
+    18: "throttled since boot",
+    19: "soft temp limit since boot",
+}
+
+
+def _decode_throttled(raw: str) -> str:
+    try:
+        bits = int(raw.strip().split("=")[1], 16)
+    except (IndexError, ValueError):
+        return raw
+    flags = [label for bit, label in THROTTLE_FLAGS.items() if bits & (1 << bit)]
+    return f"0x{bits:x}" + (f" ({', '.join(flags)})" if flags else " (clean)")
+
+
+def _run(cmd: list[str]) -> str:
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+        return result.stdout.strip() or result.stderr.strip()
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return f"({exc})"
+
+
+@guarded
+async def sysinfo(update: Update, _context: ContextTypes.DEFAULT_TYPE):
+    load1, load5, load15 = Path("/proc/loadavg").read_text().split()[:3]
+    temp = _run(["vcgencmd", "measure_temp"]).removeprefix("temp=")
+    throttled = _decode_throttled(_run(["vcgencmd", "get_throttled"]))
+
+    lines = [
+        f"Uptime: {_run(['uptime', '-p'])}",
+        f"Load avg (1/5/15m): {load1} {load5} {load15}",
+        f"Temp: {temp}",
+        f"Throttled: {throttled}",
+        "",
+        _run(["free", "-h"]),
+        "",
+        _run(["df", "-h", "/"]),
+    ]
+    await update.message.reply_text("\n".join(lines))
+
+
 LOG_SERVICE = "combot.service"
 DEFAULT_LOG_LINES = 20
 MAX_LOG_LINES = 100
@@ -198,6 +246,7 @@ HELP_TEXT = """Available commands:
 /deploy [212-bot|combot] [branch] - check for and apply updates (default: both, main)
 /bot <start|stop|status> - control 212-bot.service
 /logs [n] - show the last n lines of combot's journal (default 20, max 100)
+/sysinfo - uptime, load, temperature, throttling, memory, disk
 /help - show this message"""
 
 
@@ -220,6 +269,7 @@ def main():
     application.add_handler(CommandHandler("deploy", deploy))
     application.add_handler(CommandHandler("bot", bot_control))
     application.add_handler(CommandHandler("logs", logs))
+    application.add_handler(CommandHandler("sysinfo", sysinfo))
     application.add_handler(CommandHandler("help", help_command))
 
     log.info("combot starting")
