@@ -4,17 +4,20 @@ The Telegram communicator. Owns the bot token and chat, runs the polling
 loop, dispatches commands, and sends notifications.
 
 Business logic lives in the sibling [212-bot](https://github.com/heinzzorn/212-bot)
-repo. Synchronous functions (e.g. `logic.ping()`) are imported directly via a
-relative sys.path entry — this repo must be checked out next to a `212-bot`
-checkout (both under the same parent directory) for that import to work.
-212-bot also runs as its own standalone service (`212-bot.service`), which
-`/bot start`, `/bot stop`, and `/bot status` control independently of combot.
+repo. Synchronous functions (e.g. `logic.ping()`) are imported directly via
+sys.path, from `../212-bot` relative to this repo by default, or from
+`BOT212_DIR` if set (see `.env.example`) — useful since 212-bot doesn't yet
+live under bot-deployer's managed checkout layout. 212-bot also runs as its
+own standalone service (`212-bot.service`), which `/bot start`, `/bot stop`,
+and `/bot status` control independently of combot.
 
 `/deploy`, `/deploy 212-bot`, `/deploy combot`, or `/deploy combot my-branch`
 trigger [bot-deployer](https://github.com/heinzzorn/bot-deployer) (also
-expected as a sibling checkout) to check for and apply updates to one or both
-repos, from `main` or another branch, on demand — see its README for how
-that's kept safe despite combot restarting itself as part of the update.
+expected as a sibling checkout, or pointed to via `BOT_DEPLOYER_DIR`) to
+check for and apply updates to one or both repos, from `main` or another
+branch, on demand — see its README for how that's kept safe despite combot
+restarting itself as part of the update, and for the dedicated system users
+both repos now run as.
 
 ## Telegram setup
 
@@ -23,7 +26,17 @@ that's kept safe despite combot restarting itself as part of the update.
 3. Start combot, then send it `/start` from your phone. It replies with your chat id.
 4. Put that chat id into `.env` as `TELEGRAM_CHAT_ID=<id>` and restart (`sudo systemctl restart combot.service`) so it can message you proactively, not just reply to commands.
 
-`.env` is not committed to git (see `.gitignore`) since it holds the bot token — treat that token like a password.
+## Secrets
+
+In production (installed via bot-deployer), `TELEGRAM_BOT_TOKEN` and
+`TELEGRAM_CHAT_ID` live in `/etc/combot/combot.env` — root-owned, `chmod
+600`, readable only by the `combot` system user, loaded into the process by
+systemd's `EnvironmentFile=` (see `deploy/combot.service`). It is never
+committed to git and never lives inside this repo's checkout.
+
+For a standalone/dev install (below), the same variables go in a local
+`.env` instead, loaded via `python-dotenv` — also never committed (see
+`.gitignore`).
 
 ## Access control
 
@@ -49,7 +62,9 @@ discover your chat id.
 /bot status   # systemctl is-active 212-bot.service
 ```
 
-Requires the sudoers rule installed by `deploy/install.sh` (see below).
+Requires the sudoers rule for the `combot` user — installed by
+bot-deployer's `deploy/provision-services.sh` in production, or added by
+hand if you're running combot standalone.
 
 ## Viewing logs
 
@@ -61,20 +76,21 @@ Requires the sudoers rule installed by `deploy/install.sh` (see below).
 Runs `sudo journalctl -u combot.service`, requiring the same sudoers rule as
 above.
 
-## Standalone install
+## Standalone install (dev/testing)
 
-Normally this is set up by [bot-deployer](https://github.com/heinzzorn/bot-deployer),
-which clones this repo alongside `212-bot` and runs the install below. To set
-up combot on its own (with `../212-bot` already checked out):
+Normally combot is installed by [bot-deployer](https://github.com/heinzzorn/bot-deployer),
+which also creates the dedicated `combot` system user, the sudoers rules,
+and `/etc/combot/combot.env`. To run combot on its own instead (with
+`../212-bot` already checked out, and no sudoers rules, so `/bot`, `/deploy`,
+`/logs`, and `/reboot` won't work):
 
 ```
 ./deploy/install.sh
 ```
 
-This creates a venv, installs dependencies, creates `.env` from `.env.example`
-if missing, installs/starts `combot.service` (systemd, `Restart=always`,
-starts on boot), and installs the sudoers rule combot needs to start/stop
-`212-bot.service` and read its own journal.
+This creates a venv, installs dependencies, creates `.env` from
+`.env.example` if missing, and installs/starts `combot.service` (systemd,
+`Restart=always`, starts on boot) under whichever user runs the script.
 
 Check status:
 

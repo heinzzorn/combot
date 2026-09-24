@@ -11,12 +11,17 @@ from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "212-bot"))
+load_dotenv()
+
+# Defaults to a sibling checkout (../212-bot), overridable via BOT212_DIR --
+# 212-bot doesn't (yet) live under bot-deployer's managed checkout layout,
+# so this can't always be assumed. load_dotenv() above runs first so a value
+# set only in a local .env is picked up here too, not just real env vars.
+BOT212_DIR = Path(os.environ.get("BOT212_DIR") or (Path(__file__).resolve().parent.parent / "212-bot"))
+sys.path.insert(0, str(BOT212_DIR))
 import logic  # noqa: E402
 
 import notify  # noqa: E402
-
-load_dotenv()
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("combot")
@@ -33,9 +38,10 @@ CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 def redact(text: str) -> str:
     return text.replace(BOT_TOKEN, "***REDACTED***")
 
-DEPLOYER_TRIGGER = (
-    Path(__file__).resolve().parent.parent / "bot-deployer" / "deploy" / "trigger-update.sh"
+BOT_DEPLOYER_DIR = Path(
+    os.environ.get("BOT_DEPLOYER_DIR") or (Path(__file__).resolve().parent.parent / "bot-deployer")
 )
+DEPLOYER_TRIGGER = BOT_DEPLOYER_DIR / "deploy" / "trigger-update.sh"
 
 
 _CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f]")
