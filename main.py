@@ -13,16 +13,6 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 
 load_dotenv()
 
-# Defaults to a sibling checkout (../212-bot), overridable via BOT212_DIR --
-# 212-bot doesn't (yet) live under bot-deployer's managed checkout layout,
-# so this can't always be assumed. load_dotenv() above runs first so a value
-# set only in a local .env is picked up here too, not just real env vars.
-BOT212_DIR = Path(os.environ.get("BOT212_DIR") or (Path(__file__).resolve().parent.parent / "212-bot"))
-sys.path.insert(0, str(BOT212_DIR))
-import logic  # noqa: E402
-
-import notify  # noqa: E402
-
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("combot")
 
@@ -30,6 +20,28 @@ log = logging.getLogger("combot")
 # INFO level, and the bot token is embedded directly in the URL -- keep it
 # out of the journal entirely rather than relying on redaction alone.
 logging.getLogger("httpx").setLevel(logging.WARNING)
+
+# Defaults to a sibling checkout (../212-bot), overridable via BOT212_DIR --
+# 212-bot doesn't (yet) live under bot-deployer's managed checkout layout,
+# so this can't always be assumed, and combot must keep working even when
+# 212-bot isn't installed at all (they're meant to be independently
+# deployable). Caught broadly, not just ImportError: 212-bot's logic.py
+# likely reads its own required env vars at import time the same way
+# TELEGRAM_BOT_TOKEN is read below, so a present-but-misconfigured 212-bot
+# would otherwise raise something else and still take combot down with it.
+BOT212_DIR = Path(os.environ.get("BOT212_DIR") or (Path(__file__).resolve().parent.parent / "212-bot"))
+sys.path.insert(0, str(BOT212_DIR))
+try:
+    import logic  # noqa: E402
+except Exception as exc:  # noqa: BLE001
+    logic = None
+    log.error(
+        "212-bot's logic module not usable from %s (%s) -- /ping, /positions, /markets will report unavailable",
+        BOT212_DIR,
+        exc,
+    )
+
+import notify  # noqa: E402
 
 BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
@@ -103,18 +115,30 @@ async def start(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+LOGIC_UNAVAILABLE = "212-bot's logic module isn't available (not installed, or BOT212_DIR isn't set/reachable). See combot's journal for why."
+
+
 @guarded
 async def ping(update: Update, _context: ContextTypes.DEFAULT_TYPE):
+    if logic is None:
+        await update.message.reply_text(LOGIC_UNAVAILABLE)
+        return
     await update.message.reply_text(logic.ping())
 
 
 @guarded
 async def positions(update: Update, _context: ContextTypes.DEFAULT_TYPE):
+    if logic is None:
+        await update.message.reply_text(LOGIC_UNAVAILABLE)
+        return
     await update.message.reply_text(logic.positions())
 
 
 @guarded
 async def markets(update: Update, _context: ContextTypes.DEFAULT_TYPE):
+    if logic is None:
+        await update.message.reply_text(LOGIC_UNAVAILABLE)
+        return
     await update.message.reply_text(logic.markets())
 
 
